@@ -95,7 +95,7 @@ main() {
   export NFQWS_XKEEN_STATE_DIR="$STATE_DIR"
 
   if [ ! -f /opt/etc/init.d/S51nfqws2 ]; then
-    log "WARN: нет /opt/etc/init.d/S51nfqws2 — сначала установите nfqws2"
+    log "WARN: нет /opt/etc/init.d/S51nfqws2 - сначала установите nfqws2"
   fi
   if [ ! -f /opt/etc/nfqws2/nfqws2.conf ]; then
     log "WARN: нет /opt/etc/nfqws2/nfqws2.conf"

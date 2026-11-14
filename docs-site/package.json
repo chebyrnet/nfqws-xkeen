@@ -6,7 +6,8 @@
     "build": "next build",
     "build:pages": "GITHUB_PAGES=true next build",
     "start": "next start",
-    "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind"
+    "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind",
+    "postbuild:pages": "pagefind --site .next/server/app --output-path out/_pagefind"
   },
   "dependencies": {
     "next": "^16.4.6",

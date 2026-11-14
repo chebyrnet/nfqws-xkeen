@@ -122,7 +122,7 @@ strip_orphan_xkeen_vars() {
 }
 
 read_conf_var() {
-  # read_conf_var FILE VAR → print value without quotes
+  # read_conf_var FILE VAR -> print value without quotes
   conf=$1
   var=$2
   [ -f "$conf" ] || return 1
@@ -149,6 +149,6 @@ restart_nfqws2() {
     info "перезапуск nfqws2..."
     "$S51_PATH" restart || warn "restart nfqws2 вернул ошибку"
   else
-    warn "нет $S51_PATH — перезапустите nfqws2 вручную"
+    warn "нет $S51_PATH - перезапустите nfqws2 вручную"
   fi
 }

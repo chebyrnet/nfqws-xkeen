@@ -1,0 +1,13 @@
+# Обзор настройки связки
+
+Короткий чеклист "с нуля до рабочей схемы".
+
+1. Установите nfqws2 и XKeen (ядро mihomo).
+2. Установите [nfqws-xkeen](/docs/package/install).
+3. Добавьте proxy NFQWS с меткой - [настройка mihomo](/docs/setup/mihomo).
+4. Направьте нужные rules/группы на outbound NFQWS.
+5. Проверьте: `nfqws-xkeen doctor` и счётчики iptables.
+
+Типичная цель: часть трафика идёт через обычные proxy-группы mihomo (VPN и т.п.), а выбранные сервисы идут "напрямую", но через nfqws2.
+
+Подробности: [тонкости nfqws2](/docs/setup/nfqws), [Tor multi](/docs/setup/tor-multi).

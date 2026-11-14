@@ -1,10 +1,12 @@
 import nextra from 'nextra'
 
 // https://nextra.site/docs/guide/static-exports
+// https://nextra.site/docs/file-conventions/content-directory
 const withNextra = nextra({
   search: {
     codeblocks: false
-  }
+  },
+  contentDirBasePath: '/docs'
 })
 
 const isPages = process.env.GITHUB_PAGES === 'true'

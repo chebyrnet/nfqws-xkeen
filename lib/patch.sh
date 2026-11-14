@@ -165,7 +165,7 @@ apply_conf_block() {
   ensure_state_dir
 
   if has_markers "$conf"; then
-    info "блок nfqws-xkeen в conf уже есть — значения не затираем"
+    info "блок nfqws-xkeen в conf уже есть - значения не затираем"
     missing=
     for key in XKEEN_MARK_ONLY XKEEN_ROUTE_MARK XKEEN_ROUTE_MASK; do
       if ! grep -qE "^[[:space:]]*${key}=" "$conf"; then
@@ -270,7 +270,7 @@ remove_conf_block() {
 migrate_legacy_manual() {
   removed=0
   if [ -f "$OLD_S99_PATH" ]; then
-    warn "найден ручной $OLD_S99_PATH — отключаю"
+    warn "найден ручной $OLD_S99_PATH - отключаю"
     if [ -x "$OLD_S99_PATH" ]; then
       "$OLD_S99_PATH" disable 2>/dev/null || "$OLD_S99_PATH" stop 2>/dev/null || true
     fi
@@ -279,7 +279,7 @@ migrate_legacy_manual() {
     removed=1
   fi
   if [ -f "$OLD_ZZ_PATH" ]; then
-    warn "найден ручной $OLD_ZZ_PATH — убираю (restore делает 100-nfqws2.sh)"
+    warn "найден ручной $OLD_ZZ_PATH - убираю (restore делает 100-nfqws2.sh)"
     ensure_state_dir
     mv "$OLD_ZZ_PATH" "${NFQWS_XKEEN_STATE_DIR}/zz-nfqws-xkeen.sh.migrated" 2>/dev/null || rm -f "$OLD_ZZ_PATH"
     removed=1
@@ -324,7 +324,7 @@ patch_status() {
   fi
 
   if [ -f "$OLD_S99_PATH" ] || [ -f "$OLD_ZZ_PATH" ]; then
-    warn "остались ручные S99/zz — выполните enable"
+    warn "остались ручные S99/zz - выполните enable"
   fi
 
   if command -v iptables >/dev/null 2>&1; then
@@ -338,8 +338,8 @@ doctor_checks() {
   errs=0
   [ -f "$S51_PATH" ] || { fail "нет S51"; errs=$((errs + 1)); }
   [ -f "$NFQWS2_CONF" ] || { fail "нет nfqws2.conf"; errs=$((errs + 1)); }
-  s51_is_patched || { fail "S51 не пропатчен — nfqws-xkeen repatch"; errs=$((errs + 1)); }
-  conf_has_block || { fail "нет блока в conf — nfqws-xkeen enable"; errs=$((errs + 1)); }
+  s51_is_patched || { fail "S51 не пропатчен - nfqws-xkeen repatch"; errs=$((errs + 1)); }
+  conf_has_block || { fail "нет блока в conf - nfqws-xkeen enable"; errs=$((errs + 1)); }
   only=$(read_conf_var "$NFQWS2_CONF" XKEEN_MARK_ONLY 2>/dev/null || echo 0)
   [ "$only" = "1" ] || warn "XKEEN_MARK_ONLY != 1"
   mark=$(read_conf_var "$NFQWS2_CONF" XKEEN_ROUTE_MARK 2>/dev/null || echo "")

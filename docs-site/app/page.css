@@ -1,0 +1,124 @@
+.home-content {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+.content-container {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding-top: 4rem;
+  text-align: center;
+}
+
+.headline {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0 0 1.25rem;
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  opacity: 0.75;
+  margin: 0 auto 1rem;
+  max-width: 42rem;
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.75rem;
+  margin-bottom: 3rem;
+}
+
+a.cta {
+  display: inline-block;
+  background: linear-gradient(to bottom, #238aff, #0077ff);
+  text-decoration: none;
+  border-radius: 9999px;
+  color: #fff !important;
+  padding: 0.75rem 1.5rem;
+  text-shadow: 0 1px 1px #00387838;
+  box-shadow: 0 1px 2px #00295738;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+a.cta span {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+a.cta:hover {
+  box-shadow: 0 5px 30px -10px #0078ffab;
+  filter: brightness(1.05);
+}
+
+a.cta:hover span {
+  transform: translateX(3px);
+}
+
+a.cta-secondary {
+  display: inline-block;
+  text-decoration: none;
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+a.cta-secondary:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.features-container {
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  padding-top: 2.5rem;
+  margin-top: 1rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  max-width: 64rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+@media (min-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.feature-card {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 1rem;
+  padding: 1.25rem 1.35rem;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.feature-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.feature-card p {
+  margin: 0;
+  opacity: 0.75;
+  line-height: 1.65;
+  font-size: 0.98rem;
+}
+
+.feature-card.wide {
+  grid-column: 1 / -1;
+}

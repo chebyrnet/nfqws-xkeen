@@ -1,0 +1,494 @@
+# Tor multi (по желанию)
+
+Этот раздел не про nfqws-xkeen. Он оставлен как справочная инструкция для Entware: несколько экземпляров Tor с выходом по странам и proxy в mihomo.
+
+Примеры ниже взяты из рабочих конфигов (`torrc_xw`, `torrc_fr`, `torrc_us`, `S35tor-multi`). Строки `Bridge webtunnel ...` в примерах заменены на `***` - свои мосты возьмите у `@GetBridgesBot` (`webtunnel bridges`).
+
+## 1. Proxy в mihomo
+
+Каждый экземпляр Tor слушает свой локальный порт. В mihomo заведите socks5 на эти порты:
+
+```yaml
+proxies:
+  - name: "Мир TOR"
+    type: socks5
+    server: 127.0.0.1
+    port: 19001
+  - name: "Франция TOR"
+    type: socks5
+    server: 127.0.0.1
+    port: 19002
+  - name: "США TOR"
+    type: socks5
+    server: 127.0.0.1
+    port: 19006
+```
+
+Порты должны совпадать с `SocksPort` в соответствующих `torrc_*`.
+
+## 2. Пакеты
+
+```sh
+opkg install tor lyrebird tor-geoip
+```
+
+- `lyrebird` - плагин для мостов webtunnel
+- `tor-geoip` - базы стран для `ExitNodes {xx}`
+
+## 3. Примеры `torrc_*`
+
+Служба `S35tor-multi` подхватывает все файлы `/opt/etc/tor/torrc_*` (префикс именно `torrc_`, не `_torrc_`).
+
+### Мир без привязки к стране (`torrc_xw`)
+
+`"xw"` - неофициальный ярлык "мир": без `ExitNodes`, выход любой доступный.
+
+```sh
+nano /opt/etc/tor/torrc_xw
+```
+
+```text
+SocksPort 127.0.0.1:19001
+Log notice file /opt/var/log/tor/notices_xw.log
+
+UseBridges 1
+ClientTransportPlugin webtunnel exec /opt/sbin/lyrebird
+
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+```
+
+### Франция (`torrc_fr`)
+
+```sh
+nano /opt/etc/tor/torrc_fr
+```
+
+```text
+SocksPort 127.0.0.1:19002
+Log notice file /opt/var/log/tor/notices_fr.log
+
+GeoIPFile /opt/share/tor/geoip
+GeoIPv6File /opt/share/tor/geoip6
+ExitNodes {fr}
+
+UseBridges 1
+ClientTransportPlugin webtunnel exec /opt/sbin/lyrebird
+
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+```
+
+### США (`torrc_us`)
+
+```sh
+nano /opt/etc/tor/torrc_us
+```
+
+```text
+SocksPort 127.0.0.1:19006
+Log notice file /opt/var/log/tor/notices_us.log
+
+GeoIPFile /opt/share/tor/geoip
+GeoIPv6File /opt/share/tor/geoip6
+ExitNodes {us}
+
+UseBridges 1
+ClientTransportPlugin webtunnel exec /opt/sbin/lyrebird
+
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+Bridge webtunnel ***
+```
+
+Для новой страны: скопируйте любой страновой файл, смените порт, имя лога, суффикс файла (`torrc_de` и т.п.) и код в `ExitNodes {..}`. Мосты можно те же или свежие от бота.
+
+По желанию добавьте `StrictNodes 1`, чтобы Tor не уходил в другую страну, если нужных exit нет.
+
+## 4. Коды стран для `ExitNodes`
+
+В `ExitNodes` нужны **двухбуквенные ISO 3166-1 alpha-2** в фигурных скобках, строчными: `{fr}`, `{us}`, `{de}`. Ниже - полный список кодов и русских названий (как в справочнике ISO).
+
+| Код | Страна / территория |
+|-----|---------------------|
+| ad | Андорра |
+| ae | Объединённые Арабские Эмираты |
+| af | Афганистан |
+| ag | Антигуа и Барбуда |
+| ai | Ангилья |
+| al | Албания |
+| am | Армения |
+| ao | Ангола |
+| aq | Антарктида |
+| ar | Аргентина |
+| as | Американское Самоа |
+| at | Австрия |
+| au | Австралия |
+| aw | Аруба |
+| ax | Аландские острова |
+| az | Азербайджан |
+| ba | Босния и Герцеговина |
+| bb | Барбадос |
+| bd | Бангладеш |
+| be | Бельгия |
+| bf | Буркина-Фасо |
+| bg | Болгария |
+| bh | Бахрейн |
+| bi | Бурунди |
+| bj | Бенин |
+| bl | Сен-Бартелеми |
+| bm | Бермуды |
+| bn | Бруней |
+| bo | Боливия |
+| bq | Бонэйр, Синт-Эстатиус и Саба |
+| br | Бразилия |
+| bs | Багамы |
+| bt | Бутан |
+| bv | Остров Буве |
+| bw | Ботсвана |
+| by | Беларусь |
+| bz | Белиз |
+| ca | Канада |
+| cc | Кокосовые острова |
+| cd | Демократическая Республика Конго |
+| cf | Центральноафриканская Республика |
+| cg | Республика Конго |
+| ch | Швейцария |
+| ci | Кот-д'Ивуар |
+| ck | Острова Кука |
+| cl | Чили |
+| cm | Камерун |
+| cn | Китай |
+| co | Колумбия |
+| cr | Коста-Рика |
+| cu | Куба |
+| cv | Кабо-Верде |
+| cw | Кюрасао |
+| cx | Остров Рождества |
+| cy | Кипр |
+| cz | Чехия |
+| de | Германия |
+| dj | Джибути |
+| dk | Дания |
+| dm | Доминика |
+| do | Доминиканская Республика |
+| dz | Алжир |
+| ec | Эквадор |
+| ee | Эстония |
+| eg | Египет |
+| eh | Западная Сахара |
+| er | Эритрея |
+| es | Испания |
+| et | Эфиопия |
+| fi | Финляндия |
+| fj | Фиджи |
+| fk | Фолклендские острова |
+| fm | Микронезия |
+| fo | Фарерские острова |
+| fr | Франция |
+| ga | Габон |
+| gb | Великобритания |
+| gd | Гренада |
+| ge | Грузия |
+| gf | Французская Гвиана |
+| gg | Гернси |
+| gh | Гана |
+| gi | Гибралтар |
+| gl | Гренландия |
+| gm | Гамбия |
+| gn | Гвинея |
+| gp | Гваделупа |
+| gq | Экваториальная Гвинея |
+| gr | Греция |
+| gs | Южная Георгия и Южные Сандвичевы острова |
+| gt | Гватемала |
+| gu | Гуам |
+| gw | Гвинея-Бисау |
+| gy | Гайана |
+| hk | Гонконг |
+| hm | Остров Херд и острова Макдональд |
+| hn | Гондурас |
+| hr | Хорватия |
+| ht | Гаити |
+| hu | Венгрия |
+| id | Индонезия |
+| ie | Ирландия |
+| il | Израиль |
+| im | Остров Мэн |
+| in | Индия |
+| io | Британская территория в Индийском океане |
+| iq | Ирак |
+| ir | Иран |
+| is | Исландия |
+| it | Италия |
+| je | Джерси |
+| jm | Ямайка |
+| jo | Иордания |
+| jp | Япония |
+| ke | Кения |
+| kg | Киргизия |
+| kh | Камбоджа |
+| ki | Кирибати |
+| km | Коморы |
+| kn | Сент-Китс и Невис |
+| kp | КНДР |
+| kr | Республика Корея |
+| kw | Кувейт |
+| ky | Острова Кайман |
+| kz | Казахстан |
+| la | Лаос |
+| lb | Ливан |
+| lc | Сент-Люсия |
+| li | Лихтенштейн |
+| lk | Шри-Ланка |
+| lr | Либерия |
+| ls | Лесото |
+| lt | Литва |
+| lu | Люксембург |
+| lv | Латвия |
+| ly | Ливия |
+| ma | Марокко |
+| mc | Монако |
+| md | Молдова |
+| me | Черногория |
+| mf | Сен-Мартен |
+| mg | Мадагаскар |
+| mh | Маршалловы Острова |
+| mk | Северная Македония |
+| ml | Мали |
+| mm | Мьянма |
+| mn | Монголия |
+| mo | Макао |
+| mp | Северные Марианские острова |
+| mq | Мартиника |
+| mr | Мавритания |
+| ms | Монтсеррат |
+| mt | Мальта |
+| mu | Маврикий |
+| mv | Мальдивы |
+| mw | Малави |
+| mx | Мексика |
+| my | Малайзия |
+| mz | Мозамбик |
+| na | Намибия |
+| nc | Новая Каледония |
+| ne | Нигер |
+| nf | Остров Норфолк |
+| ng | Нигерия |
+| ni | Никарагуа |
+| nl | Нидерланды |
+| no | Норвегия |
+| np | Непал |
+| nr | Науру |
+| nu | Ниуэ |
+| nz | Новая Зеландия |
+| om | Оман |
+| pa | Панама |
+| pe | Перу |
+| pf | Французская Полинезия |
+| pg | Папуа - Новая Гвинея |
+| ph | Филиппины |
+| pk | Пакистан |
+| pl | Польша |
+| pm | Сен-Пьер и Микелон |
+| pn | Острова Питкэрн |
+| pr | Пуэрто-Рико |
+| ps | Государство Палестина |
+| pt | Португалия |
+| pw | Палау |
+| py | Парагвай |
+| qa | Катар |
+| re | Реюньон |
+| ro | Румыния |
+| rs | Сербия |
+| ru | Россия |
+| rw | Руанда |
+| sa | Саудовская Аравия |
+| sb | Соломоновы Острова |
+| sc | Сейшелы |
+| sd | Судан |
+| se | Швеция |
+| sg | Сингапур |
+| sh | Остров Святой Елены |
+| si | Словения |
+| sj | Шпицберген и Ян-Майен |
+| sk | Словакия |
+| sl | Сьерра-Леоне |
+| sm | Сан-Марино |
+| sn | Сенегал |
+| so | Сомали |
+| sr | Суринам |
+| ss | Южный Судан |
+| st | Сан-Томе и Принсипи |
+| sv | Сальвадор |
+| sx | Синт-Мартен |
+| sy | Сирия |
+| sz | Эсватини |
+| tc | Острова Теркс и Кайкос |
+| td | Чад |
+| tf | Французские Южные территории |
+| tg | Того |
+| th | Таиланд |
+| tj | Таджикистан |
+| tk | Токелау |
+| tl | Восточный Тимор |
+| tm | Туркменистан |
+| tn | Тунис |
+| to | Тонга |
+| tr | Турция |
+| tt | Тринидад и Тобаго |
+| tv | Тувалу |
+| tw | Тайвань |
+| tz | Танзания |
+| ua | Украина |
+| ug | Уганда |
+| um | Внешние малые острова США |
+| us | США |
+| uy | Уругвай |
+| uz | Узбекистан |
+| va | Ватикан |
+| vc | Сент-Винсент и Гренадины |
+| ve | Венесуэла |
+| vg | Британские Виргинские острова |
+| vi | Виргинские острова США |
+| vn | Вьетнам |
+| vu | Вануату |
+| wf | Уоллис и Футуна |
+| ws | Самоа |
+| ye | Йемен |
+| yt | Майотта |
+| za | ЮАР |
+| zm | Замбия |
+| zw | Зимбабве |
+
+Заметки:
+
+- В быту часто пишут `uk`, но в ISO и в Tor код Великобритании - **`gb`**.
+- Неофициальный ярлык **`xw`** ("мир") в таблице ISO нет: это просто суффикс имени файла без `ExitNodes`.
+- Exit-узлы Tor есть не в каждой стране из списка. Если `{xx}` не находится, смотрите лог `notices_xx.log`; при необходимости уберите `StrictNodes` или выберите другую страну.
+
+Часто используют на практике: `de`, `nl`, `fr`, `us`, `gb`, `se`, `ch`, `fi`, `pl`, `cz`, `at`, `it`, `es`, `jp`, `sg`, `ca`, `au`.
+
+## 5. Служба `S35tor-multi`
+
+Штатный `S35tor` запускает один бинарник из одного `torrc`. Для нескольких стран нужна своя init-служба:
+
+```sh
+nano /opt/etc/init.d/S35tor-multi
+chmod +x /opt/etc/init.d/S35tor-multi
+```
+
+```sh
+#!/bin/sh
+
+# Обязательные переменные для совместимости с системой Entware
+ENABLED=yes
+DESC="Tor country proxies"
+
+# Путь к нашему общему логу
+LOG_FILE="/opt/var/log/tor-multi.log"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+}
+
+get_configs() {
+    ls /opt/etc/tor/torrc_* 2>/dev/null
+}
+
+start_all() {
+    log_msg "--- Запуск службы Tor-Multi ---"
+    mkdir -p /opt/var/log/tor
+    cd /opt
+
+    for config in $(get_configs); do
+        name=$(basename "$config" | sed 's/torrc_//')
+
+        mkdir -p "/opt/var/lib/tor_$name"
+        chmod 700 "/opt/var/lib/tor_$name"
+
+        log_msg "Попытка запуска Tor [$name]..."
+
+        # Запускаем бинарник напрямую, вывод ошибок пишем в лог-файл
+        /opt/sbin/tor -f "$config" --runasdaemon 1 \
+            --PidFile "/opt/var/run/tor_$name.pid" \
+            --DataDirectory "/opt/var/lib/tor_$name" >> "$LOG_FILE" 2>&1
+
+       sleep 3
+    done
+}
+
+stop_all() {
+    log_msg "--- Остановка службы Tor-Multi ---"
+    for config in $(get_configs); do
+        name=$(basename "$config" | sed 's/torrc_//')
+        pidfile="/opt/var/run/tor_$name.pid"
+
+        if [ -f "$pidfile" ]; then
+            pid=$(cat "$pidfile")
+            log_msg "Остановка Tor [$name] (PID: $pid)"
+            kill "$pid" 2>/dev/null
+            sleep 1
+            kill -9 "$pid" 2>/dev/null
+            rm -f "$pidfile"
+        fi
+    done
+    killall lyrebird 2>/dev/null
+}
+
+status_all() {
+    for config in $(get_configs); do
+        name=$(basename "$config" | sed 's/torrc_//')
+        pidfile="/opt/var/run/tor_$name.pid"
+
+        if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile") 2>/dev/null; then
+            echo "Tor [$name] is running. (PID: $(cat $pidfile))"
+        else
+            echo "Tor [$name] is stopped."
+        fi
+    done
+}
+
+# Обработка аргументов start/stop/restart/status вручную вместо rc.func
+case "$1" in
+    start)
+        echo -n "Starting $DESC... "
+        start_all
+        echo "done."
+        ;;
+    stop)
+        echo -n "Shutting down $DESC... "
+        stop_all
+        echo "done."
+        ;;
+    restart)
+        echo -n "Restarting $DESC... "
+        stop_all
+        sleep 1
+        start_all
+        echo "done."
+        ;;
+    status|check)
+        status_all
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+```
+
+## 6. Запуск и лог
+
+```sh
+/opt/etc/init.d/S35tor-multi restart
+/opt/etc/init.d/S35tor-multi status
+tail -f /opt/var/log/tor/notices_xw.log
+```
+
+Служба поднимает отдельный DataDirectory и PidFile на каждый `torrc_*`.

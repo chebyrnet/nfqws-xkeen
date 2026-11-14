@@ -1,0 +1,50 @@
+# FAQ
+
+## Пакеты не доходят до nfqws2
+
+Пройдите по списку:
+
+1. Выполните `nfqws-xkeen doctor`.
+2. Сверьте `routing-mark` в mihomo и `XKEEN_ROUTE_MARK` в `nfqws2.conf`.
+3. Убедитесь, что нужные правила реально выбирают outbound NFQWS.
+4. Посмотрите счётчики:
+
+```sh
+iptables -t mangle -L nfqws_post -n -v
+```
+
+5. Если недавно обновляли nfqws2:
+
+```sh
+nfqws-xkeen repatch
+```
+
+## После обновления nfqws2 всё сломалось
+
+Скорее всего перезаписан `/opt/etc/init.d/S51nfqws2` без патча:
+
+```sh
+nfqws-xkeen repatch
+nfqws-xkeen doctor
+```
+
+## Хочу временно обычный nfqws2 без фильтра mihomo
+
+```sh
+nfqws-xkeen disable
+```
+
+Вернуть фильтр:
+
+```sh
+nfqws-xkeen enable
+```
+
+## Можно ли свою метку, не 0x10000000
+
+Да. Поменяйте `XKEEN_ROUTE_MARK` / `XKEEN_ROUTE_MASK` в conf и то же число (в decimal) в `routing-mark` mihomo. Затем перезапустите nfqws2.
+
+## Где логи и бэкапы
+
+- Бэкапы патча и conf: `/opt/var/lib/nfqws-xkeen/`
+- Логи самого nfqws2 - по его настройкам (`LOG_*` в conf)

@@ -41,7 +41,7 @@ check_update() {
     return 0
   fi
   warn "доступна новая версия: $remote_v (сейчас $local_v)"
-  echo "Обновление: nfqws-xkeen update — или переустановите install.sh"
+  echo "Обновление: nfqws-xkeen update - или переустановите install.sh"
   return 2
 }
 

@@ -1,15 +1,5 @@
-# Тонкости nfqws2
+import { ClientRedirect } from '../components/ClientRedirect'
 
-Когда mihomo уже фильтрует трафик до NFQWS:
+# Страница переехала
 
-```sh
-NFQWS_EXTRA_ARGS="$MODE_ALL"
-```
-
-`ISP_INTERFACE` и `NFQUEUE_NUM` — в том же `nfqws2.conf` (часто `eth3` и `300`).
-
-Если веб-редактор снёс маркеры блока nfqws-xkeen:
-
-```sh
-nfqws-xkeen enable
-```
+<ClientRedirect to="/docs/setup/nfqws" />

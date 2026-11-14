@@ -1,28 +1,44 @@
-# nfqws-xkeen
+# Введение
 
-Пакет для Keenetic + Entware: направляет в **nfqws2** только трафик, который mihomo пометил outbound’ом **NFQWS** (`routing-mark`).
+## Что это такое
 
-## Идея
+**nfqws-xkeen** - пакет для роутеров Keenetic с Entware. Он помогает связать два популярных инструмента:
+
+- **XKeen** с ядром **mihomo** - прозрачный прокси: решает, какой трафик куда отправить (в VPN, напрямую, в особый режим);
+- **nfqws2** - обработка пакетов на роутере для обхода DPI (deep packet inspection у провайдера).
+
+Сами по себе они не "видят" друг друга. Mihomo умеет поставить на пакет служебную метку (`routing-mark`). Nfqws2 умеет принимать трафик в свою очередь NFQUEUE. Задача пакета - сделать так, чтобы в nfqws2 попадали **только** пакеты с вашей меткой из mihomo, а весь остальной трафик nfqws2 не трогал.
+
+## Как это выглядит на практике
+
+1. В mihomo вы создаёте отдельный выход с именем вроде `NFQWS` (тип `direct`) и указываете метку пакета.
+2. В правилах маршрутизации выбираете этот выход для нужных сайтов и приложений (например YouTube или Discord).
+3. Пакет настраивает nfqws2: при включённом режиме он смотрит на ту же метку и отправляет такие пакеты в свою обработку.
+4. Остальной трафик идёт как вы настроили в mihomo (прокси, VPN, напрямую без nfqws).
 
 ```text
-клиент → XKeen/mihomo
-       → outbound NFQWS (direct + routing-mark 0x10000000)
-       → штатные правила nfqws2 (POLICY_MARK = эта метка)
-       → NFQUEUE → nfqws2 (DPI desync)
+устройство в домашней сети
+  -> XKeen / mihomo
+       -> обычные proxy-группы (VPN и т.п.)
+       -> выход NFQWS (direct + метка) -> nfqws2 -> интернет
 ```
 
-Вместо своей урезанной iptables-цепочки пакет **патчит** `S51nfqws2`, чтобы nfqws2 сам строил полный firewall, но фильтровал по метке mihomo.
+## Чем это лучше "ручной" схемы
+
+Можно самому писать iptables-правила и отключать штатный firewall nfqws2. Так иногда делают, но это хрупко: после обновления nfqws2 меняются порты, стратегии и набор правил, а ваша ручная цепочка отстаёт.
+
+**nfqws-xkeen** делает иначе:
+
+- оставляет штатную генерацию правил nfqws2;
+- добавляет фильтр по метке mihomo;
+- пишет понятный блок настроек в `nfqws2.conf`;
+- умеет заново наложить патч после обновления nfqws2 (`repatch`).
 
 ## Что понадобится
 
-1. [nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic)
-2. [XKeen](https://github.com/jameszeroX/XKeen) с ядром mihomo
-3. Этот пакет: [установка](/install)
+1. Keenetic с Entware.
+2. Установленный [nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic).
+3. [XKeen](https://github.com/jameszeroX/XKeen) с ядром **mihomo**.
+4. Этот пакет: [установка](/docs/package/install).
 
-Полезные ссылки: [Keenetic Ultra](https://support.keenetic.ru/ultra/kn-1811/ru/20980.html), [nfqws-keenetic-web](https://github.com/nfqws/nfqws-keenetic-web), [Xkeen-UI](https://github.com/umarcheh001/Xkeen-UI).
-
-## Дальше
-
-- [Установка](/install)
-- [Mihomo / NFQWS](/mihomo-setup)
-- [Как работает патч](/how-it-works)
+Дальше по шагам: [установка](/docs/package/install), [настройка mihomo](/docs/setup/mihomo), [как устроен патч](/docs/package/how-it-works).

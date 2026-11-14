@@ -1,0 +1,75 @@
+# Установка
+
+Ниже - установка на сам роутер (SSH в Entware). Команды выполняйте от пользователя, у которого есть права писать в `/opt`.
+
+## Перед установкой
+
+Убедитесь, что уже стоят:
+
+1. **nfqws2** - есть файл `/opt/etc/init.d/S51nfqws2` и конфиг `/opt/etc/nfqws2/nfqws2.conf`.
+2. **XKeen** с ядром **mihomo** (в веб-панели или через `xkeen` видно, что используется mihomo).
+
+Если nfqws2 ещё нет, сначала установите его по инструкции [nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic), затем возвращайтесь сюда.
+
+## Установка одной командой
+
+Подключитесь к роутеру по SSH и выполните:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/chebyrnet/nfqws-xkeen/main/install.sh | sh
+```
+
+Скрипт скачает пакет с GitHub, разложит файлы и по возможности сразу включит интеграцию.
+
+## Установка из папки с репозиторием
+
+Если вы уже склонировали репозиторий или скопировали файлы на роутер:
+
+```sh
+cd /путь/к/nfqws-xkeen
+sh install.sh --from-dir .
+```
+
+Только положить файлы, без включения:
+
+```sh
+sh install.sh --from-dir . --no-enable
+nfqws-xkeen enable
+```
+
+## Что появится в системе
+
+| Путь | Назначение |
+|------|------------|
+| `/opt/share/nfqws-xkeen/` | файлы пакета |
+| `/opt/sbin/nfqws-xkeen` | команда для меню и операций |
+| `/opt/var/lib/nfqws-xkeen/` | бэкапы `S51nfqws2` и `nfqws2.conf` |
+| блок в `/opt/etc/nfqws2/nfqws2.conf` | настройки метки mihomo |
+| патч в `/opt/etc/init.d/S51nfqws2` | фильтр по метке при старте nfqws2 |
+
+## Проверка после установки
+
+```sh
+nfqws-xkeen status
+nfqws-xkeen doctor
+```
+
+Должны быть: патч на месте, блок в conf, процесс nfqws2 запущен (если вы его включали раньше).
+
+## Удаление
+
+```sh
+nfqws-xkeen uninstall
+```
+
+Или скриптом с GitHub:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/chebyrnet/nfqws-xkeen/main/uninstall.sh | sh
+```
+
+Бэкапы после удаления можно убрать вручную:
+
+```sh
+rm -rf /opt/var/lib/nfqws-xkeen
+```

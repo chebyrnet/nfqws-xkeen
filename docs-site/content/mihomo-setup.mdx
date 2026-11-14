@@ -1,38 +1,5 @@
-# Настройка mihomo
+import { ClientRedirect } from '../components/ClientRedirect'
 
-## Proxy NFQWS
+# Страница переехала
 
-```yaml
-proxies:
-  - name: NFQWS
-    type: direct
-    udp: true
-    ip-version: ipv4
-    routing-mark: 268435456 # 0x10000000
-```
-
-Значение должно совпадать с `XKEEN_ROUTE_MARK` в `nfqws2.conf`.
-
-## Исключить NFQWS из Fastest / Fallback
-
-Добавьте фильтр по имени:
-
-```text
-filter: "^(?!.*NFQWS).*$"
-```
-
-Пример групп — `fallback` / `url-test` с этим `filter`, `include-all: true`, `hidden: true`.
-
-## YouTube / QUIC
-
-Не блокируйте QUIC в `rules`, если гоняете его через nfqws.
-
-## Discord
-
-Добавьте rule-provider geosite discord и направьте группу на outbound **NFQWS**.
-
-```text
-https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/discord.mrs
-```
-
-> Плейсхолдер под скрин: выбор NFQWS в UI.
+<ClientRedirect to="/docs/setup/mihomo" />

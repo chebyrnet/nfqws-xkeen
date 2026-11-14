@@ -1,0 +1,98 @@
+# Настройка mihomo
+
+Цель этого раздела - настроить mihomo так, чтобы нужный трафик получал метку и уходил в nfqws2, а не в обычный VPN.
+
+Конфиг mihomo обычно правят через XKeen, Xkeen-UI или файл конфигурации ядра. Точный путь зависит от вашей установки XKeen; смысл настроек один и тот же.
+
+## Шаг 1. Добавьте выход NFQWS
+
+В секции `proxies` добавьте отдельный proxy:
+
+```yaml
+proxies:
+  - name: NFQWS
+    type: direct
+    udp: true
+    ip-version: ipv4
+    routing-mark: 268435456
+```
+
+Что здесь важно:
+
+- `type: direct` - трафик не уходит в VPN, а идёт "напрямую" с роутера, но с меткой.
+- `routing-mark: 268435456` - это десятичная запись hex-метки `0x10000000`.
+- Имя `NFQWS` удобно искать в списках outbound; можно назвать иначе, но тогда везде используйте своё имя.
+
+В `/opt/etc/nfqws2/nfqws2.conf` в блоке nfqws-xkeen должны быть те же значения:
+
+```sh
+XKEEN_MARK_ONLY=1
+XKEEN_ROUTE_MARK=0x10000000
+XKEEN_ROUTE_MASK=0x10000000
+```
+
+Если поменяли метку в mihomo - поменяйте и в conf, затем перезапустите nfqws2 (`S51nfqws2 restart` или `nfqws-xkeen enable`).
+
+## Шаг 2. Не пускайте NFQWS в авто-группы
+
+Группы вроде Fastest / Fallback часто подхватывают все proxy подряд. NFQWS туда обычно не нужен: это не "сервер для проверки скорости", а служебный выход под метку.
+
+Добавьте фильтр по имени:
+
+```text
+filter: "^(?!.*NFQWS).*$"
+```
+
+Пример фрагмента:
+
+```yaml
+proxy-groups:
+  - name: Fallback
+    type: fallback
+    url: https://www.gstatic.com/generate_204
+    filter: "^(?!.*NFQWS).*$"
+    interval: 300
+    max-failed-times: 3
+    hidden: true
+    include-all: true
+  - name: Fastest
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    filter: "^(?!.*NFQWS).*$"
+    interval: 300
+    max-failed-times: 3
+    hidden: true
+    include-all: true
+```
+
+## Шаг 3. Направьте нужные сервисы на NFQWS
+
+В правилах (`rules`) или в группах для конкретных приложений выберите outbound **NFQWS**.
+
+Именно вы решаете, что идёт в nfqws2: например только YouTube, только Discord, или несколько категорий сразу.
+
+## Шаг 4. QUIC / YouTube на телефонах и ТВ
+
+Если YouTube должен идти через nfqws по UDP/QUIC, не блокируйте QUIC отдельным правилом вроде `REJECT` для quic. Иначе пакеты до nfqws2 просто не дойдут в том виде, в котором вы ожидаете.
+
+## Шаг 5. Discord (по желанию)
+
+Для Discord часто удобнее доменный rule-set, а не classical. Пример URL провайдера:
+
+```text
+https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/discord.mrs
+```
+
+Группу Discord направьте на outbound **NFQWS**, если хотите обработку через nfqws2.
+
+## Проверка
+
+1. `nfqws-xkeen doctor`
+2. Откройте сервис, который направили на NFQWS.
+3. Посмотрите счётчики:
+
+```sh
+iptables -t mangle -L nfqws_post -n -v
+```
+
+Если пакеты с меткой доходят, счётчики на правилах NFQUEUE растут.

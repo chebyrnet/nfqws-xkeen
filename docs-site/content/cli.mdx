@@ -1,24 +1,5 @@
-# CLI и меню
+import { ClientRedirect } from '../components/ClientRedirect'
 
-```sh
-nfqws-xkeen          # меню
-nfqws-xkeen status
-nfqws-xkeen enable
-nfqws-xkeen disable
-nfqws-xkeen repatch
-nfqws-xkeen doctor
-nfqws-xkeen check
-nfqws-xkeen update
-nfqws-xkeen uninstall
-```
+# Страница переехала
 
-| Команда | Действие |
-|---|---|
-| `status` | патч, блок conf, процесс, iptables |
-| `enable` | блок + патч + restart |
-| `disable` | `XKEEN_MARK_ONLY=0` |
-| `repatch` | после обновления nfqws2 |
-| `doctor` | диагностика |
-| `check` / `update` | GitHub releases |
-
-> Плейсхолдер под скрин меню CLI.
+<ClientRedirect to="/docs/package/cli" />
