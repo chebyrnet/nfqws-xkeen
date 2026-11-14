@@ -1,0 +1,8 @@
+*.log
+.DS_Store
+docs-site/node_modules/
+docs-site/.next/
+docs-site/out/
+docs-site/public/_pagefind/
+*.log
+.DS_Store

@@ -1,0 +1,108 @@
+#!/bin/sh
+# nfqws-xkeen — CLI для связки mihomo/XKeen → nfqws2
+# BusyBox ash compatible.
+
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+export NFQWS_XKEEN_ROOT="$ROOT"
+# shellcheck source=../lib/common.sh
+. "$ROOT/lib/common.sh"
+# shellcheck source=../lib/patch.sh
+. "$ROOT/lib/patch.sh"
+# shellcheck source=../lib/update.sh
+. "$ROOT/lib/update.sh"
+
+print_banner() {
+  printf "${C_BOLD}${C_CYAN}======== nfqws-xkeen ========${C_RESET}\n"
+  printf "${C_DIM}mihomo mark -> nfqws2 | v%s${C_RESET}\n\n" "$(pkg_version)"
+}
+
+usage() {
+  cat <<EOF
+Использование: nfqws-xkeen <команда>
+
+  menu       интерактивное меню (по умолчанию)
+  status     статус патча, conf и nfqws2
+  enable     блок в nfqws2.conf + патч S51 + restart
+  disable    XKEEN_MARK_ONLY=0 + restart
+  repatch    перепатчить S51 после обновления nfqws2
+  doctor     быстрая диагностика
+  check      проверить обновления на GitHub
+  update     обновить пакет с GitHub (remote install)
+  uninstall  снять патч и блок conf
+  help       эта справка
+
+Переменные окружения:
+  S51_PATH  NFQWS2_CONF  NFQWS_XKEEN_STATE_DIR  NO_COLOR=1
+EOF
+}
+
+draw_menu() {
+  print_banner
+  patch_status
+  echo ""
+  printf "${C_BOLD}Меню${C_RESET}\n"
+  echo "  1) status"
+  echo "  2) enable"
+  echo "  3) disable"
+  echo "  4) repatch (после обновления nfqws2)"
+  echo "  5) doctor"
+  echo "  6) check update"
+  echo "  7) update"
+  echo "  8) uninstall"
+  echo "  0) выход"
+  echo ""
+  printf "Выбор: "
+}
+
+run_menu() {
+  while true; do
+    draw_menu
+    # shellcheck disable=SC2162
+    read choice || choice=0
+    echo ""
+    case "$choice" in
+      1) patch_status ;;
+      2) enable_integration ;;
+      3) disable_integration ;;
+      4) repatch_all ;;
+      5) doctor_checks || true ;;
+      6) check_update || true ;;
+      7) run_remote_install ;;
+      8)
+        printf "Снять интеграцию? [y/N]: "
+        read ans || ans=
+        case "$ans" in
+          y|Y|yes|YES) uninstall_integration ;;
+          *) info "отменено" ;;
+        esac
+        ;;
+      0|q|Q) exit 0 ;;
+      *) warn "неизвестный пункт" ;;
+    esac
+    echo ""
+    printf "Enter — продолжить... "
+    read _ || true
+    echo ""
+  done
+}
+
+cmd=${1:-menu}
+case "$cmd" in
+  menu) run_menu ;;
+  status) patch_status ;;
+  enable) enable_integration ;;
+  disable) disable_integration ;;
+  repatch) repatch_all ;;
+  doctor) doctor_checks ;;
+  check|check-update) check_update || true ;;
+  update) run_remote_install ;;
+  uninstall) uninstall_integration ;;
+  help|-h|--help) usage ;;
+  *)
+    fail "неизвестная команда: $cmd"
+    usage
+    exit 1
+    ;;
+esac

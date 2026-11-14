@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pack
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "$VERSION" > VERSION
+          tar -czf "nfqws-xkeen-${VERSION}.tar.gz" \
+            VERSION LICENSE README.md install.sh uninstall.sh \
+            bin lib conf tests
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nfqws-xkeen-*.tar.gz
+          generate_release_notes: true

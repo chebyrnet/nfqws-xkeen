@@ -1,0 +1,23 @@
+# Как работает
+
+## Блок в `nfqws2.conf`
+
+```sh
+XKEEN_MARK_ONLY=1
+XKEEN_ROUTE_MARK=0x10000000
+XKEEN_ROUTE_MASK=0x10000000
+```
+
+Подхватывается штатным `. "$CONFFILE"` в `S51nfqws2`.
+
+| Переменная | Смысл |
+|---|---|
+| `XKEEN_MARK_ONLY` | `1` — только метка mihomo; `0` — обычный nfqws2 |
+| `XKEEN_ROUTE_MARK` | hex = `routing-mark` в mihomo (`268435456`) |
+| `XKEEN_ROUTE_MASK` | маска iptables, обычно равна метке |
+
+## Патч `S51nfqws2`
+
+При `XKEEN_MARK_ONLY=1` в `create_running_config` выставляется `POLICY_MARK` из ваших переменных и `POLICY_EXCLUDE=0`. Дальше `_firewall_start` строит полный набор `nfqws_post` / `nfqws_pre` / `nfqws_nat`.
+
+Бэкапы: `/opt/var/lib/nfqws-xkeen/*.bak`.

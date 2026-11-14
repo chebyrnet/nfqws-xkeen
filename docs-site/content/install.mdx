@@ -1,0 +1,34 @@
+# Установка
+
+## One-liner
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/chebyrnet/nfqws-xkeen/main/install.sh | sh
+```
+
+Установщик кладёт файлы в `/opt/share/nfqws-xkeen`, линк `/opt/sbin/nfqws-xkeen`, бэкапит `S51` и conf, вставляет блок настроек, патчит init и перезапускает nfqws2.
+
+## Из клона
+
+```sh
+git clone https://github.com/chebyrnet/nfqws-xkeen.git
+cd nfqws-xkeen
+sh install.sh --from-dir .
+```
+
+Только файлы, без enable:
+
+```sh
+sh install.sh --from-dir . --no-enable
+nfqws-xkeen enable
+```
+
+## Миграция со старых скриптов
+
+Если были `S99nfqws-xkeen` и `zz-nfqws-xkeen.sh`, `enable` отключит их. Restore делает штатный `100-nfqws2.sh`.
+
+## Удаление
+
+```sh
+nfqws-xkeen uninstall
+```

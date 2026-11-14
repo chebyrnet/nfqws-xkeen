@@ -1,0 +1,21 @@
+# FAQ
+
+## Пакеты не доходят до nfqws2
+
+1. `nfqws-xkeen doctor`
+2. Совпадает ли `routing-mark` с `XKEEN_ROUTE_MARK`
+3. Выбран ли outbound NFQWS
+4. Счётчики `iptables -t mangle -L nfqws_post -n -v`
+5. После обновления nfqws2: `nfqws-xkeen repatch`
+
+## После обновления nfqws2 всё сломалось
+
+```sh
+nfqws-xkeen repatch
+```
+
+## Временно обычный nfqws2
+
+```sh
+nfqws-xkeen disable
+```

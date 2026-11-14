@@ -1,0 +1,15 @@
+# Тонкости nfqws2
+
+Когда mihomo уже фильтрует трафик до NFQWS:
+
+```sh
+NFQWS_EXTRA_ARGS="$MODE_ALL"
+```
+
+`ISP_INTERFACE` и `NFQUEUE_NUM` — в том же `nfqws2.conf` (часто `eth3` и `300`).
+
+Если веб-редактор снёс маркеры блока nfqws-xkeen:
+
+```sh
+nfqws-xkeen enable
+```

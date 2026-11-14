@@ -1,0 +1,478 @@
+#!/bin/sh
+# Entware startup script
+
+PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+NFQWS_BIN="/opt/usr/bin/nfqws2"
+CONFFILE="/opt/etc/nfqws2/nfqws2.conf"
+PIDFILE="/opt/var/run/nfqws2.pid"
+# Keenetic policy mark
+POLICY_MARK=
+# Marks for excluded packets
+MARK_EXCLUDE="0x20000000/0x20000000"
+# nfqws2 processed mark
+MARK_PROCESSED="0x40000000/0x40000000"
+# iptables groups
+IPT_GROUP_POST="nfqws_post"
+IPT_GROUP_PRE="nfqws_pre"
+IPT_GROUP_NAT="nfqws_nat"
+
+. "$CONFFILE"
+if [ -f "$CONFFILE.run" ]; then
+  . "$CONFFILE.run"
+fi
+
+is_running() {
+  if [ ! -f "$PIDFILE" ]; then
+    return 1
+  fi
+
+  PID_SAVED=$(cat "$PIDFILE" 2>/dev/null)
+
+  # A truncated or garbage pidfile must not reach /proc: "/proc//cmdline" and
+  # "/proc/-1/cmdline" are not the paths we mean to read.
+  case "$PID_SAVED" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+  if [ "$PID_SAVED" -le 0 ]; then
+    return 1
+  fi
+
+  # Check the pid from the pidfile instead of searching the process table by
+  # name: pgrep -nf matches any process whose command line merely contains the
+  # binary path, so an unrelated shell or ssh command mentioning it made
+  # is_running return a false negative. Reading /proc also drops the pgrep
+  # dependency, which is absent on some busybox builds.
+  # Compare argv[0] rather than the whole command line: with a stale pidfile and
+  # a recycled pid, any process merely mentioning the path would pass, and stop
+  # would then SIGTERM it.
+  # Redirections apply left to right, so 2>/dev/null has to come first: with a
+  # stale pid the input file is gone, and the open error would be printed before
+  # stderr got redirected.
+  PID_ARGV0=$(tr '\0' '\n' 2>/dev/null < "/proc/$PID_SAVED/cmdline" | head -n 1)
+  if [ "$PID_ARGV0" != "$NFQWS_BIN" ]; then
+    return 1
+  fi
+
+  # 0 = true, 1 = false
+  return 0
+}
+
+status_service() {
+  if is_running; then
+    echo 'Service NFQWS2 is running'
+  else
+    echo 'Service NFQWS2 is stopped'
+  fi
+}
+
+validate_config() {
+  case "$NFQWS_BASE_ARGS" in
+    *--new*)
+      echo "Using --new in NFQWS_BASE_ARGS is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+  case "$NFQWS_ARGS" in
+    *--new*)
+      echo "Using --new in NFQWS_ARGS is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+  case "$NFQWS_ARGS_QUIC" in
+    *--new*)
+      echo "Using --new in NFQWS_ARGS_QUIC is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+  case "$NFQWS_ARGS_UDP" in
+    *--new*)
+      echo "Using --new in NFQWS_ARGS_UDP is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+  case "$NFQWS_EXTRA_ARGS" in
+    *--new*)
+      echo "Using --new in NFQWS_EXTRA_ARGS is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+  case "$NFQWS_ARGS_IPSET" in
+    *--new*)
+      echo "Using --new in NFQWS_ARGS_IPSET is not allowed. Use NFQWS_ARGS_CUSTOM instead"
+      return 1
+      ;;
+  esac
+}
+
+ndmc_cli() {
+  local SYSTEM_LD_LIBRARY_PATH="/lib:/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  LD_LIBRARY_PATH="$SYSTEM_LD_LIBRARY_PATH" /bin/ndmc -c "$@"
+}
+
+create_running_config() {
+  local MARK=$(ndmc_cli show ip policy 2>&1 | grep -i "description = $POLICY_NAME:" -A 1 | grep 'mark:' | grep -o '[^ ]*$' | head -n 1)
+  if [ -n "$MARK" ]; then
+    POLICY_MARK="0x$MARK/0x0fffffff"
+    if [ -n "$POLICY_EXCLUDE" ] && [ "$POLICY_EXCLUDE" -ne "0" ]; then
+      echo "Found policy '$POLICY_NAME'. Traffic from it will be excluded from processing."
+    else
+      echo "Found policy '$POLICY_NAME'. Only traffic from it will be processed."
+    fi
+  else
+    POLICY_MARK=""
+  fi
+
+  echo "ISP_INTERFACE=\"$ISP_INTERFACE\"" > "$CONFFILE.run"
+  echo "IPV6_ENABLED=$IPV6_ENABLED" >> "$CONFFILE.run"
+  echo "TCP_PORTS=$TCP_PORTS" >> "$CONFFILE.run"
+  echo "UDP_PORTS=$UDP_PORTS" >> "$CONFFILE.run"
+  echo "POLICY_NAME=\"$POLICY_NAME\"" >> "$CONFFILE.run"
+  echo "POLICY_EXCLUDE=$POLICY_EXCLUDE" >> "$CONFFILE.run"
+  echo "POLICY_MARK=\"$POLICY_MARK\"" >> "$CONFFILE.run"
+  echo "NFQUEUE_NUM=$NFQUEUE_NUM" >> "$CONFFILE.run"
+}
+
+remove_running_config() {
+  rm -f "$CONFFILE.run"
+  . "$CONFFILE"
+}
+
+kernel_modules() {
+  KERNEL=$(uname -r)
+
+  # Recent KeeneticOS builds keep kernel modules in /lib/system-modules instead
+  # of /lib/modules. Search whichever of these paths actually exist.
+  MODULE_DIRS=""
+  for dir in "/lib/modules/$KERNEL" "/lib/system-modules/$KERNEL" /lib/system-modules; do
+    [ -d "$dir" ] && MODULE_DIRS="$MODULE_DIRS $dir"
+  done
+  [ -n "$MODULE_DIRS" ] || MODULE_DIRS="/lib/modules/$KERNEL"
+
+  # Try to load all modules (OpenWRT or Padavan)
+  modprobe -a -q nfnetlink_queue xt_multiport xt_connbytes xt_NFQUEUE xt_CONNMARK xt_connmark >/dev/null 2>&1
+
+  if [ -z "$(lsmod 2>/dev/null | grep "nfnetlink_queue ")" ]; then
+    nfnetlink_mod_path=$(find $MODULE_DIRS -name "nfnetlink_queue.ko*")
+
+    if [ -n "$nfnetlink_mod_path" ]; then
+      insmod "$nfnetlink_mod_path" >/dev/null 2>&1
+      echo "nfnetlink_queue.ko loaded"
+    fi
+  fi
+
+  if [ -z "$(lsmod 2>/dev/null | grep "xt_multiport ")" ]; then
+    multiport_mod_path=$(find $MODULE_DIRS -name "xt_multiport.ko*")
+
+    if [ -n "$multiport_mod_path" ]; then
+      insmod "$multiport_mod_path" >/dev/null 2>&1
+      echo "xt_multiport.ko loaded"
+    fi
+  fi
+
+  if [ -z "$(lsmod 2>/dev/null | grep "xt_connbytes ")" ]; then
+    connbytes_mod_path=$(find $MODULE_DIRS -name "xt_connbytes.ko*")
+
+    if [ -n "$connbytes_mod_path" ]; then
+      insmod "$connbytes_mod_path" >/dev/null 2>&1
+      echo "xt_connbytes.ko loaded"
+    fi
+  fi
+
+  if [ -z "$(lsmod 2>/dev/null | grep "xt_NFQUEUE ")" ]; then
+    nfqueue_mod_path=$(find $MODULE_DIRS -name "xt_NFQUEUE.ko*")
+
+    if [ -n "$nfqueue_mod_path" ]; then
+      insmod "$nfqueue_mod_path" >/dev/null 2>&1
+      echo "xt_NFQUEUE.ko loaded"
+    else
+      echo "Cannot find xt_NFQUEUE.ko module"
+    fi
+  fi
+
+  if [ -z "$(lsmod 2>/dev/null | grep "xt_CONNMARK ")" ] && [ -z "$(lsmod 2>/dev/null | grep "xt_connmark ")" ]; then
+    connmark_mod_path=$(find $MODULE_DIRS -name "xt_CONNMARK.ko*" -o -name "xt_connmark.ko*" | head -n 1)
+
+    if [ -n "$connmark_mod_path" ]; then
+      insmod "$connmark_mod_path" >/dev/null 2>&1
+      echo "xt_connmark.ko module loaded"
+    fi
+  fi
+
+  if [ -z "$(lsmod 2>/dev/null | grep "nf_conntrack ")" ]; then
+    conntrack_mod_path=$(find $MODULE_DIRS -name "nf_conntrack.ko*" | head -n 1)
+
+    if [ -n "$conntrack_mod_path" ]; then
+      insmod "$conntrack_mod_path" >/dev/null 2>&1
+      echo "nf_conntrack.ko loaded"
+    fi
+  fi
+}
+
+_startup_args() {
+  local fastpath_workaround=
+  case "$NFQWS_BASE_ARGS" in
+    *--fastpath-workaround=*) ;;
+    *) fastpath_workaround="--fastpath-workaround=auto" ;;
+  esac
+
+  local args="--user=$USER --qnum=$NFQUEUE_NUM $fastpath_workaround $NFQWS_BASE_ARGS"
+
+  # Fix bind multiple interfaces
+  local iface_count=$(echo $ISP_INTERFACE | wc -w)
+  if [ "$iface_count" -gt "1" ]; then
+    args="$args --bind-fix4"
+    if [ -n "$IPV6_ENABLED" ] && [ "$IPV6_ENABLED" -ne "0" ]; then
+      args="$args --bind-fix6"
+    fi
+  fi
+
+  # Logging
+  if [ "$LOG_LEVEL" -eq "1" ]; then
+    if [ -n "$LOG_DEBUG_PATH" ]; then
+      args="--debug=$LOG_DEBUG_PATH $args"
+    else
+      args="--debug=syslog $args"
+    fi
+  fi
+
+  # Custom args
+  if [ -n "$NFQWS_ARGS_CUSTOM" ]; then
+    args="$args $NFQWS_ARGS_CUSTOM --new"
+  fi
+
+  # UDP
+  if [ -n "$NFQWS_ARGS_UDP" ]; then
+    args="$args $NFQWS_ARGS_UDP --new"
+  fi
+
+  # QUIC
+  if [ -n "$NFQWS_ARGS_QUIC" ]; then
+    if [ -n "$NFQWS_ARGS_IPSET" ]; then
+      args="$args $NFQWS_ARGS_QUIC $NFQWS_ARGS_IPSET --ipset-ip=0.0.0.0 --new"
+    fi
+    args="$args $NFQWS_ARGS_QUIC $NFQWS_EXTRA_ARGS --new"
+  fi
+
+  # HTTP(S)
+  if [ -n "$NFQWS_ARGS_IPSET" ]; then
+    args="$args $NFQWS_ARGS $NFQWS_ARGS_IPSET --ipset-ip=0.0.0.0 --new"
+  fi
+  args="$args $NFQWS_ARGS $NFQWS_EXTRA_ARGS"
+
+  echo "$args"
+}
+
+_firewall_start() {
+  local CMD=$1 # iptables or ip6tables
+  local rc=0
+
+  if [ "${XKEEN_MARK_ONLY:-0}" = "1" ]; then
+      return 0
+  fi
+
+  MAX_PKT_IN=15
+  MAX_PKT_OUT=15
+
+  JNFQ="-j NFQUEUE --queue-num $NFQUEUE_NUM --queue-bypass"
+  CONN_CHECK="-m mark ! --mark $MARK_PROCESSED"
+  CONN_SET_EXCLUDE="-j CONNMARK --set-xmark $MARK_EXCLUDE"
+
+  CB_ORIG="-m connbytes --connbytes-dir=original --connbytes-mode=packets"
+  CB_REPLY="-m connbytes --connbytes-dir=reply --connbytes-mode=packets"
+
+  local POLICY_EXC_RULE=""
+  local POLICY_RET_RULE=""
+  if [ -n "$POLICY_MARK" ]; then
+    if [ -n "$POLICY_EXCLUDE" ] && [ "$POLICY_EXCLUDE" -ne "0" ]; then
+      POLICY_RET_RULE="-m mark --mark $POLICY_MARK -j RETURN"
+    else
+      POLICY_EXC_RULE="-m mark ! --mark $POLICY_MARK $CONN_SET_EXCLUDE"
+      POLICY_RET_RULE="-m mark ! --mark $POLICY_MARK -j RETURN"
+    fi
+  fi
+
+  $CMD -w -t mangle -N $IPT_GROUP_POST 2>/dev/null
+  $CMD -w -t mangle -F $IPT_GROUP_POST || rc=1
+  $CMD -w -t mangle -C POSTROUTING -j $IPT_GROUP_POST 2>/dev/null || $CMD -w -t mangle -A POSTROUTING -j $IPT_GROUP_POST || rc=1
+
+  if [ "$CMD" = "iptables" ]; then
+    $CMD -w -t nat -N $IPT_GROUP_NAT 2>/dev/null
+    $CMD -w -t nat -F $IPT_GROUP_NAT || rc=1
+    $CMD -w -t nat -C POSTROUTING -j $IPT_GROUP_NAT 2>/dev/null || $CMD -w -t nat -A POSTROUTING -j $IPT_GROUP_NAT || rc=1
+  fi
+
+  $CMD -w -t mangle -N $IPT_GROUP_PRE 2>/dev/null
+  $CMD -w -t mangle -F $IPT_GROUP_PRE || rc=1
+  $CMD -w -t mangle -C PREROUTING -j $IPT_GROUP_PRE 2>/dev/null || $CMD -w -t mangle -A PREROUTING -j $IPT_GROUP_PRE || rc=1
+
+  for IFACE in $ISP_INTERFACE; do
+    # --- POSTROUTING (outgoing) ---
+    # POLICY_EXCLUDE=0 stores non-policy connections in connmark to skip their replies.
+    # POLICY_EXCLUDE=1 only returns current policy-marked packets to avoid touching Keenetic PBR state.
+    if [ -n "$POLICY_EXC_RULE" ]; then
+      $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $POLICY_EXC_RULE || rc=1
+      $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE -m connmark --mark $MARK_EXCLUDE -j RETURN || rc=1
+    fi
+    if [ -n "$POLICY_RET_RULE" ]; then
+      $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $POLICY_RET_RULE || rc=1
+    fi
+
+    # NFQUEUE rules (process only packets NOT marked as processed)
+    $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $CONN_CHECK -p udp -m multiport --dports $UDP_PORTS $CB_ORIG --connbytes 1:$MAX_PKT_OUT $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $CONN_CHECK -p tcp -m multiport --dports $TCP_PORTS $CB_ORIG --connbytes 1:$MAX_PKT_OUT $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $CONN_CHECK -p tcp -m multiport --dports $TCP_PORTS --tcp-flags fin fin $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_POST -o $IFACE $CONN_CHECK -p tcp -m multiport --dports $TCP_PORTS --tcp-flags rst rst $JNFQ || rc=1
+
+    # NAT MASQUERADE
+    if [ "$CMD" = "iptables" ]; then
+      $CMD -w -t nat -A $IPT_GROUP_NAT -o $IFACE -m mark --mark $MARK_PROCESSED -p udp -j MASQUERADE || rc=1
+    fi
+
+    # --- PREROUTING (incoming / replies) ---
+    if [ -n "$POLICY_RET_RULE" ] && [ -z "$POLICY_EXC_RULE" ]; then
+      $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $POLICY_RET_RULE || rc=1
+    fi
+    if [ -n "$POLICY_EXC_RULE" ]; then
+      $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE -m connmark --mark $MARK_EXCLUDE -j RETURN || rc=1
+    fi
+
+    # Already processed packets should not be re-queued.
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE -m mark --mark $MARK_PROCESSED -j RETURN || rc=1
+
+    # NFQUEUE rules (process only packets NOT marked as processed)
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $CONN_CHECK -p udp -m multiport --sports $UDP_PORTS $CB_REPLY --connbytes 1:$MAX_PKT_IN $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $CONN_CHECK -p tcp -m multiport --sports $TCP_PORTS $CB_REPLY --connbytes 1:$MAX_PKT_IN $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $CONN_CHECK -p tcp -m multiport --sports $TCP_PORTS --tcp-flags syn,ack syn,ack $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $CONN_CHECK -p tcp -m multiport --sports $TCP_PORTS --tcp-flags fin fin $JNFQ || rc=1
+    $CMD -w -t mangle -A $IPT_GROUP_PRE -i $IFACE $CONN_CHECK -p tcp -m multiport --sports $TCP_PORTS --tcp-flags rst rst $JNFQ || rc=1
+  done
+  return "$rc"
+}
+
+_firewall_stop() {
+  local CMD=$1 # iptables or ip6tables
+
+  # Remove all possible jumps (in case of duplicates) and ignore errors if absent.
+  while $CMD -w -t mangle -C POSTROUTING -j $IPT_GROUP_POST 2>/dev/null; do
+    $CMD -w -t mangle -D POSTROUTING -j $IPT_GROUP_POST 2>/dev/null || break
+  done
+  while $CMD -w -t mangle -C PREROUTING -j $IPT_GROUP_PRE 2>/dev/null; do
+    $CMD -w -t mangle -D PREROUTING -j $IPT_GROUP_PRE 2>/dev/null || break
+  done
+  if [ "$CMD" = "iptables" ]; then
+    while $CMD -w -t nat -C POSTROUTING -j $IPT_GROUP_NAT 2>/dev/null; do
+      $CMD -w -t nat -D POSTROUTING -j $IPT_GROUP_NAT 2>/dev/null || break
+    done
+  fi
+
+  # Flush and delete chains if they exist.
+  $CMD -w -t mangle -F $IPT_GROUP_POST 2>/dev/null
+  $CMD -w -t mangle -X $IPT_GROUP_POST 2>/dev/null
+  $CMD -w -t mangle -F $IPT_GROUP_PRE 2>/dev/null
+  $CMD -w -t mangle -X $IPT_GROUP_PRE 2>/dev/null
+  if [ "$CMD" = "iptables" ]; then
+    $CMD -w -t nat -F $IPT_GROUP_NAT 2>/dev/null
+    $CMD -w -t nat -X $IPT_GROUP_NAT 2>/dev/null
+  fi
+}
+
+firewall_iptables() {
+  _firewall_start iptables
+}
+
+firewall_ip6tables() {
+  if [ -z "$IPV6_ENABLED" ] || [ "$IPV6_ENABLED" -eq "0" ]; then
+    return
+  fi
+
+  _firewall_start ip6tables
+}
+
+firewall_stop() {
+  _firewall_stop iptables
+
+  if [ -n "$IPV6_ENABLED" ] && [ "$IPV6_ENABLED" -ne "0" ]; then
+    _firewall_stop ip6tables
+  fi
+}
+
+system_config() {
+  sysctl -w net.netfilter.nf_conntrack_acct=1 >/dev/null 2>&1
+  sysctl -w net.netfilter.nf_conntrack_checksum=0 >/dev/null 2>&1
+  sysctl -w net.netfilter.nf_conntrack_tcp_be_liberal=1 >/dev/null 2>&1
+}
+start() {
+  if is_running; then
+    echo 'Service NFQWS2 is already running' >&2
+    return 1
+  fi
+
+  validate_config || return 1
+  create_running_config
+  kernel_modules
+
+  if ! $NFQWS_BIN --daemon --pidfile=$PIDFILE $(_startup_args); then
+    echo 'NFQWS2 daemon exited with an error, firewall rules not installed' >&2
+    return 1
+  fi
+
+  # The parent can exit before the child writes its pidfile.
+  for attempt in 1 2 3 4 5; do
+    is_running && break
+    sleep 1
+  done
+  if ! is_running; then
+    echo 'NFQWS2 daemon did not start, firewall rules not installed' >&2
+    return 1
+  fi
+
+  firewall_iptables
+  firewall_ip6tables
+  system_config
+
+  echo 'Started NFQWS2 service'
+}
+
+stop() {
+  firewall_stop
+
+  if ! is_running; then
+    echo 'Service NFQWS2 is not running' >&2
+    return 1
+  fi
+
+  echo 'Stopping NFQWS2 service...'
+  kill -15 $(cat "$PIDFILE") && rm -f "$PIDFILE"
+  remove_running_config
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  status)
+    status_service
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  firewall_iptables)
+    firewall_iptables
+    ;;
+  firewall_ip6tables)
+    firewall_ip6tables
+    ;;
+  firewall_stop)
+    firewall_stop
+    ;;
+  kernel_modules)
+    kernel_modules
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+esac

@@ -1,0 +1,21 @@
+# Tor multi (опционально)
+
+Не часть nfqws-xkeen, но часто рядом.
+
+## Proxy в mihomo
+
+```yaml
+proxies:
+  - name: "Мир TOR"
+    type: socks5
+    server: 127.0.0.1
+    port: 19001
+```
+
+## Пакеты
+
+```sh
+opkg install tor lyrebird tor-geoip
+```
+
+Мосты: Telegram `@GetBridgesBot` → `webtunnel bridges`. Для нескольких стран — отдельные `torrc_*` и своя init-служба.

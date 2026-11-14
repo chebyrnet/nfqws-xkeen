@@ -1,0 +1,24 @@
+{
+  "name": "nfqws-xkeen-docs",
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "build:pages": "GITHUB_PAGES=true next build",
+    "start": "next start",
+    "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind"
+  },
+  "dependencies": {
+    "next": "^16.4.6",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "pagefind": "^1.3.0"
+  },
+  "overrides": {
+    "zod": "~4.3.6"
+  }
+}

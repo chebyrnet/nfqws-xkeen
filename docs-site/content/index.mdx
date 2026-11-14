@@ -1,0 +1,28 @@
+# nfqws-xkeen
+
+Пакет для Keenetic + Entware: направляет в **nfqws2** только трафик, который mihomo пометил outbound’ом **NFQWS** (`routing-mark`).
+
+## Идея
+
+```text
+клиент → XKeen/mihomo
+       → outbound NFQWS (direct + routing-mark 0x10000000)
+       → штатные правила nfqws2 (POLICY_MARK = эта метка)
+       → NFQUEUE → nfqws2 (DPI desync)
+```
+
+Вместо своей урезанной iptables-цепочки пакет **патчит** `S51nfqws2`, чтобы nfqws2 сам строил полный firewall, но фильтровал по метке mihomo.
+
+## Что понадобится
+
+1. [nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic)
+2. [XKeen](https://github.com/jameszeroX/XKeen) с ядром mihomo
+3. Этот пакет: [установка](/install)
+
+Полезные ссылки: [Keenetic Ultra](https://support.keenetic.ru/ultra/kn-1811/ru/20980.html), [nfqws-keenetic-web](https://github.com/nfqws/nfqws-keenetic-web), [Xkeen-UI](https://github.com/umarcheh001/Xkeen-UI).
+
+## Дальше
+
+- [Установка](/install)
+- [Mihomo / NFQWS](/mihomo-setup)
+- [Как работает патч](/how-it-works)
