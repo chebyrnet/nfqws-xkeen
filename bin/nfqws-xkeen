@@ -14,8 +14,14 @@ export NFQWS_XKEEN_ROOT="$ROOT"
 . "$ROOT/lib/update.sh"
 
 print_banner() {
-  printf "${C_BOLD}${C_CYAN}======== nfqws-xkeen ========${C_RESET}\n"
-  printf "${C_DIM}mihomo mark -> nfqws2 | v%s${C_RESET}\n\n" "$(pkg_version)"
+  # NF (cyan) / (yellow) EEN (magenta) — ASCII, BusyBox-safe
+  printf '%b\n' "${C_BCYAN}  _   _ _____  ${C_BYELLOW} __ ${C_BMAGENTA} _____ _____ _   _${C_RESET}"
+  printf '%b\n' "${C_BCYAN} | \\ | |  ___| ${C_BYELLOW}/ / ${C_BMAGENTA}| ____| ____| \\ | |${C_RESET}"
+  printf '%b\n' "${C_BCYAN} |  \\| | |_    ${C_BYELLOW}/ /  ${C_BMAGENTA}|  _| |  _| |  \\| |${C_RESET}"
+  printf '%b\n' "${C_BCYAN} | |\\  |  _|   ${C_BYELLOW}/ /   ${C_BMAGENTA}| |___| |___| |\\  |${C_RESET}"
+  printf '%b\n' "${C_BCYAN} |_| \\_|_|     ${C_BYELLOW}/_/    ${C_BMAGENTA}|_____|_____|_| \\_|${C_RESET}"
+  printf '%b\n\n' \
+    "  ${C_DIM}nfqws-xkeen${C_RESET} ${C_YELLOW}·${C_RESET} ${C_GREEN}v$(pkg_version)${C_RESET} ${C_DIM}· mihomo mark → nfqws2${C_RESET}"
 }
 
 usage() {

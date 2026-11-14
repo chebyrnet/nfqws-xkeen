@@ -45,9 +45,15 @@ if [ -t 1 ] && [ "${NO_COLOR:-}" != "1" ]; then
   C_RED='\033[31m'
   C_GREEN='\033[32m'
   C_YELLOW='\033[33m'
+  C_BLUE='\033[34m'
+  C_MAGENTA='\033[35m'
   C_CYAN='\033[36m'
+  C_BCYAN='\033[1;36m'
+  C_BMAGENTA='\033[1;35m'
+  C_BYELLOW='\033[1;33m'
 else
-  C_RESET= C_BOLD= C_DIM= C_RED= C_GREEN= C_YELLOW= C_CYAN=
+  C_RESET= C_BOLD= C_DIM= C_RED= C_GREEN= C_YELLOW= C_BLUE= C_MAGENTA= C_CYAN=
+  C_BCYAN= C_BMAGENTA= C_BYELLOW=
 fi
 
 log() { printf '%s\n' "${NFQWS_XKEEN_NAME}: $*"; }
