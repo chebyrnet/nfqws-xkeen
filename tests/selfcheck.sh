@@ -101,4 +101,13 @@ echo "== remove S51 patch =="
 remove_s51_patch
 ! grep -q "$MARKER_BEGIN" "$S51_PATH"
 
+echo "== CLI resolves ROOT via symlink =="
+mkdir -p "$WORK/sbin"
+ln -sf "$ROOT/bin/nfqws-xkeen" "$WORK/sbin/nfqws-xkeen"
+out=$("$WORK/sbin/nfqws-xkeen" help 2>&1) || {
+  echo "FAIL: CLI via symlink: $out"
+  exit 1
+}
+printf '%s\n' "$out" | grep -q 'Использование: nfqws-xkeen'
+
 echo "OK selfcheck passed"

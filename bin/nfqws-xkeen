@@ -4,7 +4,24 @@
 
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+_self=$0
+case "$_self" in
+  /*) ;;
+  *) _self=$(pwd)/$_self ;;
+esac
+if [ -L "$_self" ]; then
+  _target=$(readlink "$_self" 2>/dev/null || true)
+  if [ -n "$_target" ]; then
+    case "$_target" in
+      /*) _self=$_target ;;
+      *) _self=$(dirname "$_self")/$_target ;;
+    esac
+  fi
+fi
+ROOT=$(CDPATH= cd -- "$(dirname "$_self")/.." && pwd)
+if [ ! -f "$ROOT/lib/common.sh" ] && [ -f /opt/share/nfqws-xkeen/lib/common.sh ]; then
+  ROOT=/opt/share/nfqws-xkeen
+fi
 export NFQWS_XKEEN_ROOT="$ROOT"
 # shellcheck source=../lib/common.sh
 . "$ROOT/lib/common.sh"
